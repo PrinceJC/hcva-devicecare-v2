@@ -267,16 +267,14 @@ export default function App() {
               })}
             </div>
           ))}
+          <button type="button"
+            className={activeTab === "emailsettings" ? "active daily-email-settings" : "daily-email-settings"}
+            aria-current={activeTab === "emailsettings" ? "page" : undefined}
+            onClick={() => navigate("emailsettings")}>
+            <Icon name="emailsettings" /><span>Email settings</span>
+          </button>
         </nav>
         <div className="sidebar-bottom">
-          <nav className="settings-navigation" aria-label="Settings">
-            <button type="button"
-              className={activeTab === "emailsettings" ? "active" : ""}
-              aria-current={activeTab === "emailsettings" ? "page" : undefined}
-              onClick={() => navigate("emailsettings")}>
-              <Icon name="emailsettings" /><span>Email settings</span>
-            </button>
-          </nav>
           <div className="sidebar-profile">
             <span className="avatar">IT</span>
             <div>

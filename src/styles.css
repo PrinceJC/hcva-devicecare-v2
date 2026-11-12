@@ -1222,8 +1222,14 @@ td .row-actions {
   .sidebar { padding-top: 14px; padding-bottom: 10px; }
   .sidebar > .brand { margin-bottom: 14px; }
   .navigation-group + .navigation-group { margin-top: 10px; }
-  .sidebar-profile { display: none; }
+  .sidebar-profile { display: flex; }
 }
 @media (pointer: coarse) {
   .sidebar nav button { min-height: 44px; }
 }
+
+/* Keep account identity visible; email belongs with the daily navigation. */
+.sidebar .daily-email-settings { margin-top: 8px; }
+.sidebar-profile { display: flex; }
+.sidebar-profile > div { min-width: 0; }
+.sidebar-profile strong, .sidebar-profile small { overflow-wrap: anywhere; }
