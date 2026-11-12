@@ -416,3 +416,6 @@ enabled = true
 
 [functions.process-action-emails]
 verify_jwt = false
+
+[functions.ats-send-email]
+verify_jwt = false
