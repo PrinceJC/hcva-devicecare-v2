@@ -25,6 +25,12 @@ const sections = [
   { id: "emailsettings", label: "Email settings" },
 ];
 
+const navigationGroups = [
+  { label: "Overview", ids: ["dashboard"] },
+  { label: "Team & devices", ids: ["people", "devices", "schedule"] },
+  { label: "Inspections & follow-up", ids: ["history", "actions", "incidents"] },
+];
+
 function savedSection() {
   try {
     const value = sessionStorage.getItem("hcva-devicecare-section");
@@ -246,27 +252,31 @@ export default function App() {
     <div className="app-shell">
       <aside className={`sidebar ${menuOpen ? "is-open" : ""}`}>
         <Brand />
-        <div className="nav-label">WORKSPACE</div>
-        <nav aria-label="Main navigation">
-          {sections.map((section) => (
-            <button
-              type="button"
-              key={section.id}
-              className={activeTab === section.id ? "active" : ""}
-              aria-current={activeTab === section.id ? "page" : undefined}
-              onClick={() => navigate(section.id)}
-            >
-              <Icon name={section.id} />
-              {section.label}
-            </button>
+        <nav className="daily-navigation" aria-label="Main navigation">
+          {navigationGroups.map((group, index) => (
+            <div className="navigation-group" key={group.label} role="group" aria-labelledby={`navigation-group-${index}`}>
+              <h2 className="nav-label" id={`navigation-group-${index}`}>{group.label}</h2>
+              {group.ids.map((id) => {
+                const section = sections.find((item) => item.id === id);
+                return <button type="button" key={id}
+                  className={activeTab === id ? "active" : ""}
+                  aria-current={activeTab === id ? "page" : undefined}
+                  onClick={() => navigate(id)}>
+                  <Icon name={id} /><span>{section.label}</span>
+                </button>;
+              })}
+            </div>
           ))}
         </nav>
         <div className="sidebar-bottom">
-          <div className="care-card">
-            <Icon name="schedule" />
-            <strong>A little care. A longer life.</strong>
-            <p>A six-month routine for a team that's always ready.</p>
-          </div>
+          <nav className="settings-navigation" aria-label="Settings">
+            <button type="button"
+              className={activeTab === "emailsettings" ? "active" : ""}
+              aria-current={activeTab === "emailsettings" ? "page" : undefined}
+              onClick={() => navigate("emailsettings")}>
+              <Icon name="emailsettings" /><span>Email settings</span>
+            </button>
+          </nav>
           <div className="sidebar-profile">
             <span className="avatar">IT</span>
             <div>
