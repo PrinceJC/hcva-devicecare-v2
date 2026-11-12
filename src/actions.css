@@ -1,0 +1,219 @@
+.action-detail,
+.action-settings {
+  margin: 20px 0 24px;
+}
+.action-detail-heading,
+.action-list-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+.action-detail-heading h3 {
+  margin: 0;
+}
+.action-detail-heading > button {
+  margin: 0;
+}
+.action-list-toolbar > div {
+  min-width: 240px;
+}
+.action-list-toolbar label {
+  margin-top: 0;
+}
+.action-list-toolbar button {
+  align-self: flex-end;
+}
+.action-meta {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 20px;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  padding: 20px 0;
+  margin: 20px 0;
+}
+.action-meta small {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+  margin-bottom: 7px;
+}
+.action-meta strong {
+  display: block;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.action-detail > h3 {
+  font-size: 15px;
+  margin-top: 22px;
+}
+.action-detail > form {
+  max-width: 760px;
+}
+.action-detail > form fieldset > button {
+  max-width: 300px;
+}
+.action-preview-section {
+  margin-top: 20px;
+}
+.action-email-preview {
+  padding: 20px;
+  border: 1px solid #d1e3d8;
+  background: #f6fbf7;
+  border-radius: 10px;
+  margin: 20px 0;
+}
+.action-email-preview p {
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.action-email-preview pre {
+  font-family: inherit;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  background: white;
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  line-height: 1.75;
+  font-size: 13px;
+}
+.action-checkbox {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  line-height: 1.6;
+}
+.action-checkbox input {
+  width: auto;
+  margin-top: 3px;
+  flex-shrink: 0;
+}
+.action-transition {
+  border-top: 1px solid var(--line);
+  padding-top: 24px;
+  margin-top: 24px;
+}
+.action-section-title {
+  font-size: 16px;
+  margin-top: 30px !important;
+}
+.action-timeline {
+  list-style: none;
+  padding: 0;
+}
+.action-timeline li {
+  border-left: 2px solid #c9dfd1;
+  padding: 0 0 18px 17px;
+  margin: 0 0 8px 5px;
+}
+.action-timeline li > strong {
+  font-size: 12px;
+  text-transform: capitalize;
+}
+.action-timeline li > small {
+  display: block;
+  font-size: 10px;
+  color: var(--muted);
+  margin-top: 5px;
+}
+.action-timeline li p {
+  font-size: 12px;
+  margin-top: 8px;
+}
+.action-success {
+  padding: 13px 16px;
+  border: 1px solid #d0e8d6;
+  background: #eef8f1;
+  border-radius: 8px;
+  font-size: 13px;
+  color: #306249;
+}
+.action-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 22px;
+}
+.action-settings {
+  max-width: 1000px;
+}
+.action-settings .muted {
+  font-size: 12px;
+}
+.action-settings fieldset > button {
+  max-width: 300px;
+}
+.action-overview {
+  padding: 0;
+  overflow: hidden;
+  margin-top: 24px;
+}
+.action-overview-body {
+  padding: 20px;
+}
+.action-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.action-metrics > div {
+  padding: 20px 24px;
+  border-right: 1px solid var(--line);
+}
+.action-metrics > div:last-child {
+  border: 0;
+}
+.action-metrics span {
+  font-size: 11px;
+  color: var(--muted);
+  display: block;
+}
+.action-metrics strong {
+  font-size: 28px;
+  display: block;
+  margin-top: 8px;
+}
+.config-screen {
+  max-width: 600px;
+  padding: 30px;
+  background: white;
+  border: 1px solid #dce7df;
+  border-radius: 14px;
+  margin: 60px auto;
+}
+.config-screen p {
+  line-height: 1.7;
+}
+.config-screen code {
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 850px) {
+  .action-meta {
+    grid-template-columns: 1fr 1fr;
+  }
+  .action-form-grid {
+    grid-template-columns: 1fr;
+  }
+  .action-overview .panel-heading {
+    flex-wrap: wrap;
+  }
+  .action-overview .panel-heading > button {
+    font-size: 11px;
+  }
+}
+@media (max-width: 550px) {
+  .action-meta,
+  .action-metrics {
+    grid-template-columns: 1fr;
+  }
+  .action-metrics > div {
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .config-screen {
+    margin: 20px;
+  }
+}
