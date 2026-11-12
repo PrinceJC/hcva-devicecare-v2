@@ -139,15 +139,15 @@ Copy `supabase/functions/.env.example` to
 `supabase/functions/.env.local` and replace every placeholder:
 
 ```env
-RESEND_API_KEY=re_YOUR_RESEND_API_KEY
+DEVICECARE_RESEND_API_KEY=re_YOUR_RESEND_API_KEY
 DEVICECARE_PUBLISHABLE_KEY=sb_publishable_YOUR_NEW_PROJECT_KEY
 DEVICECARE_SECRET_KEY=sb_secret_YOUR_NEW_PROJECT_SECRET_KEY
-APP_ORIGIN=https://your-new-app.vercel.app
-CRON_SECRET=YOUR_RANDOM_64_CHARACTER_SECRET
-ALLOW_LOCALHOST=false
+DEVICECARE_APP_ORIGIN=https://your-new-app.vercel.app
+DEVICECARE_CRON_SECRET=YOUR_RANDOM_64_CHARACTER_SECRET
+DEVICECARE_ALLOW_LOCALHOST=false
 ```
 
-APP_ORIGIN is only the scheme and hostname, with no trailing slash or URL path.
+DEVICECARE_APP_ORIGIN is only the scheme and hostname, with no trailing slash or URL path.
 Generate a random Cron secret in the terminal:
 
 ```powershell
@@ -170,7 +170,7 @@ user JWTs and the dedicated Cron secret. Its own handler verifies user identity
 with Supabase Auth and checks the admin database role before processing any
 queue jobs. Do not remove those handler checks.
 
-For testing from localhost, temporarily set ALLOW_LOCALHOST=true in the function
+For testing from localhost, temporarily set DEVICECARE_ALLOW_LOCALHOST=true in the function
 secrets. After testing, set it back to false. Do not point a new preview frontend
 at live production records without configuring its origin and data access.
 
@@ -182,7 +182,7 @@ depending on the current dashboard layout) and create these two secrets:
 | Vault secret name      | Value                                        |
 | ---------------------- | -------------------------------------------- |
 | devicecare_project_url | https://YOUR_NEW_PROJECT_REF.supabase.co     |
-| devicecare_cron_secret | EXACT SAME value as the function CRON_SECRET |
+| devicecare_cron_secret | EXACT SAME value as the function DEVICECARE_CRON_SECRET |
 
 You can also create them in a PRIVATE SQL Editor query using
 `select vault.create_secret('VALUE', 'NAME');`. Do not commit the completed
@@ -262,8 +262,8 @@ or force an uncertain duplicate.
   connectivity and Vercel environment variables. Supabase must be running.
 - **Missing tables/functions:** push all migrations to the intended project.
 - **Function 401/403:** verify the signed-in account's admin row, the configured
-  APP_ORIGIN, and the function's publishable/server keys from the SAME project.
-- **Queue does not process:** verify function deployment, RESEND_API_KEY,
+  DEVICECARE_APP_ORIGIN, and the function's publishable/server keys from the SAME project.
+- **Queue does not process:** verify function deployment, DEVICECARE_RESEND_API_KEY,
   matching Cron secrets, email enabled setting, Cron history and function logs.
 - **Provider rejects sender:** verify the Resend sending domain and account.
 - **Unknown outcome:** reconcile against the provider; do not blindly resend.

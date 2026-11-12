@@ -1,36 +1,29 @@
-import { useEffect, useRef, useState } from 'react';
-import {
-  getChecklist,
-  completeInspection,
-} from '../lib/maintenance.js';
+import { useEffect, useRef, useState } from "react";
+import { getChecklist, completeInspection } from "../lib/maintenance.js";
 
 function manilaToday() {
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: 'Asia/Manila',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Manila",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
   }).formatToParts(new Date());
 
   const values = Object.fromEntries(
-    parts.map((part) => [part.type, part.value])
+    parts.map((part) => [part.type, part.value]),
   );
 
   return `${values.year}-${values.month}-${values.day}`;
 }
 
-export default function InspectionForm({
-  device,
-  onSaved,
-  onCancel,
-}) {
+export default function InspectionForm({ device, onSaved, onCancel }) {
   const [checks, setChecks] = useState([]);
   const [results, setResults] = useState({});
   const [date, setDate] = useState(manilaToday);
-  const [findings, setFindings] = useState('');
+  const [findings, setFindings] = useState("");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [retry, setRetry] = useState(0);
 
   // Retain the same request ID when retrying an unchanged submission.
@@ -40,21 +33,19 @@ export default function InspectionForm({
     let cancelled = false;
 
     setLoading(true);
-    setError('');
+    setError("");
 
     getChecklist()
       .then((records) => {
         if (cancelled) return;
 
         if (!records.length) {
-          throw new Error('No maintenance checklist was found.');
+          throw new Error("No maintenance checklist was found.");
         }
 
         setChecks(records);
         setResults(
-          Object.fromEntries(
-            records.map((check) => [check.code, ''])
-          )
+          Object.fromEntries(records.map((check) => [check.code, ""])),
         );
       })
       .catch((error) => {
@@ -71,24 +62,22 @@ export default function InspectionForm({
 
   async function handleSubmit(event) {
     event.preventDefault();
-    setError('');
+    setError("");
 
     if (checks.some((check) => !results[check.code])) {
-      setError('Choose a result for every checklist item.');
+      setError("Choose a result for every checklist item.");
       return;
     }
 
-    if (checks.every((check) => results[check.code] === 'na')) {
-      setError('At least one checklist item must be applicable.');
+    if (checks.every((check) => results[check.code] === "na")) {
+      setError("At least one checklist item must be applicable.");
       return;
     }
 
-    const failed = checks.some(
-      (check) => results[check.code] === 'fail'
-    );
+    const failed = checks.some((check) => results[check.code] === "fail");
 
     if (failed && !findings.trim()) {
-      setError('Describe the failed checks and follow-up actions.');
+      setError("Describe the failed checks and follow-up actions.");
       return;
     }
 
@@ -122,19 +111,21 @@ export default function InspectionForm({
     }
 
     setBusy(false);
-    onSaved({ hasFailures: failed });
+    onSaved({ hasFailures: failed, inspectionId: pendingRequest.current.id });
   }
 
   return (
     <div className="panel inspection-panel">
       <h3>Maintenance inspection: {device.model}</h3>
       <p className="muted">
-        Record the actual results of your device checks.
-        Failed checks require follow-up notes.
+        Record the actual results of your device checks. Failed checks require
+        follow-up notes.
       </p>
 
       {error && (
-        <p className="error" role="alert">{error}</p>
+        <p className="error" role="alert">
+          {error}
+        </p>
       )}
 
       {loading ? (
@@ -150,9 +141,7 @@ export default function InspectionForm({
       ) : (
         <form onSubmit={handleSubmit}>
           <fieldset disabled={busy}>
-            <label htmlFor="inspection_date">
-              Inspection date
-            </label>
+            <label htmlFor="inspection_date">Inspection date</label>
             <input
               id="inspection_date"
               type="date"
@@ -165,15 +154,13 @@ export default function InspectionForm({
 
             {checks.map((check) => (
               <div className="check-item" key={check.code}>
-                <label htmlFor={`check_${check.code}`}>
-                  {check.title}
-                </label>
+                <label htmlFor={`check_${check.code}`}>{check.title}</label>
 
                 <p className="muted">{check.description}</p>
 
                 <select
                   id={`check_${check.code}`}
-                  value={results[check.code] || ''}
+                  value={results[check.code] || ""}
                   onChange={(event) => {
                     const value = event.target.value;
 
@@ -204,7 +191,7 @@ export default function InspectionForm({
             />
 
             <button type="submit">
-              {busy ? 'Saving inspection…' : 'Complete inspection'}
+              {busy ? "Saving inspection…" : "Complete inspection"}
             </button>
           </fieldset>
         </form>

@@ -24,6 +24,12 @@ test("Full fresh database and reviewed action-email workflow", async (t) => {
  create schema auth;create table auth.users(id uuid primary key,email text);
  create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;
  grant usage on schema public,auth to anon,authenticated,service_role;grant execute on function auth.uid() to anon,authenticated,service_role;`);
+    await db.exec(`create schema storage;
+      create table storage.buckets(id text primary key,name text,public boolean,file_size_limit bigint,allowed_mime_types text[]);
+      create table storage.objects(id uuid primary key,bucket_id text,name text);
+      alter table storage.objects enable row level security;
+      create function storage.foldername(text) returns text[] language sql immutable as $$select string_to_array($1,'/')$$;
+      grant usage on schema storage to anon,authenticated,service_role;`);
     const migrations = new URL("../supabase/migrations/", import.meta.url);
     for (const name of (await readdir(migrations))
       .filter((n) => n.endsWith(".sql"))
@@ -41,6 +47,50 @@ test("Full fresh database and reviewed action-email workflow", async (t) => {
     await query(
       "insert into public.devices(id,person_id,model) values($1,$2,'Sample laptop')",
       [device, person],
+    );
+    await t.test(
+      "shared ATS migration chain keeps ATS recruitment access separate from DeviceCare administration",
+      async () => {
+        const atsOnly = uid(99);
+        await query(
+          "insert into auth.users values($1,'recruiter@example.com')",
+          [atsOnly],
+        );
+        await query(
+          "insert into public.ats_staff(user_id,email,role) values($1,'recruiter@example.com','recruiter')",
+          [atsOnly],
+        );
+        await as(atsOnly);
+        assert.equal(
+          (await query("select public.ats_is_recruiter() allowed")).rows[0]
+            .allowed,
+          true,
+        );
+        assert.equal(
+          (await query("select public.devicecare_is_admin() allowed")).rows[0]
+            .allowed,
+          false,
+        );
+        assert.equal(
+          (await query("select * from public.device_action_plans")).rows.length,
+          0,
+        );
+        await assert.rejects(
+          query(
+            "select public.save_action_email_settings(0,false,false,'','','','','')",
+          ),
+        );
+        await as(null, "service_role");
+        await db.exec("reset role");
+        assert.equal(
+          (
+            await query(
+              "select count(*)::int n from public.ats_email_templates",
+            )
+          ).rows[0].n,
+          6,
+        );
+      },
     );
     const checks = (
       await query("select code from public.maintenance_checks")

@@ -217,3 +217,25 @@
     margin: 20px;
   }
 }
+
+.action-connection-result {
+  margin-top: 16px;
+  padding: 16px;
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+.email-help {
+  margin-top: 16px;
+}
+.email-help summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.email-help li,
+.action-settings li {
+  margin: 8px 0;
+}
+.action-settings code {
+  overflow-wrap: anywhere;
+}

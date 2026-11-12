@@ -12,6 +12,7 @@ import {
   processEmails,
   manilaToday,
   timestamp,
+  emailResultMessage,
 } from "../lib/actions.js";
 
 function Detail({ id, onClose, onChanged }) {
@@ -30,7 +31,6 @@ function Detail({ id, onClose, onChanged }) {
   useEffect(() => {
     let active = true;
     setLoading(true);
-    setError("");
     planDetails(id)
       .then((d) => {
         if (!active) return;
@@ -108,16 +108,25 @@ function Detail({ id, onClose, onChanged }) {
       );
       if (initial) {
         const r = await processEmails(initial.id);
-        setMessage(
-          r.accepted
-            ? "Email accepted by the provider. See the send history below."
-            : "Plan approved. The email remains queued or needs attention; see send history.",
-        );
+        setMessage(emailResultMessage(r));
       }
     } catch (e) {
       setMessage(
-        `Plan approved and queued. Email processing could not finish: ${e.message}. The scheduled worker can retry queued jobs.`,
+        `Plan approved and queued. Email processing could not finish: ${e.message}. The scheduled worker can retry queued jobs once it is configured.`,
       );
+    } finally {
+      setBusy(false);
+      reload();
+    }
+  }
+  async function sendQueued(jobId) {
+    setBusy(true);
+    setError("");
+    setMessage("");
+    try {
+      setMessage(emailResultMessage(await processEmails(jobId)));
+    } catch (e) {
+      setError(e.message);
     } finally {
       setBusy(false);
       reload();
@@ -160,7 +169,7 @@ function Detail({ id, onClose, onChanged }) {
   return (
     <section className="panel action-detail">
       <div className="action-detail-heading">
-        <h3>Assessment action plan</h3>
+        <h3>Email and action plan for {details?.plan.person_name || "VA"}</h3>
         <button className="secondary" disabled={busy} onClick={onClose}>
           Close details
         </button>
@@ -313,7 +322,7 @@ function Detail({ id, onClose, onChanged }) {
                       leadership CC recipients.
                     </label>
                     <button disabled={busy || !reviewed} onClick={approve}>
-                      {busy ? "Approving…" : "Approve and queue email"}
+                      {busy ? "Sending…" : "Approve and send to this VA"}
                     </button>
                   </div>
                 )}
@@ -389,6 +398,7 @@ function Detail({ id, onClose, onChanged }) {
                     <th>Status</th>
                     <th>Recipients</th>
                     <th>Last detail</th>
+                    <th>Send</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -414,6 +424,17 @@ function Detail({ id, onClose, onChanged }) {
                             ? timestamp(j.accepted_at)
                             : "Awaiting processing")}
                         <small>{j.provider_id || ""}</small>
+                      </td>
+                      <td>
+                        {j.status === "queued" &&
+                          plan.status === "awaiting_action" && (
+                            <button
+                              disabled={busy}
+                              onClick={() => sendQueued(j.id)}
+                            >
+                              Send this VA email
+                            </button>
+                          )}
                       </td>
                     </tr>
                   ))}
@@ -444,11 +465,13 @@ function Detail({ id, onClose, onChanged }) {
     </section>
   );
 }
-export default function ActionPlans() {
+export default function ActionPlans({ initialPlanId = null, onNavigate }) {
   const [status, setStatus] = useState("all"),
     [page, setPage] = useState(0),
+    [search, setSearch] = useState(""),
+    [query, setQuery] = useState(""),
     [refresh, setRefresh] = useState(0),
-    [selected, setSelected] = useState(null),
+    [selected, setSelected] = useState(initialPlanId),
     [result, setResult] = useState({ records: [], count: 0 }),
     [loading, setLoading] = useState(true),
     [error, setError] = useState("");
@@ -456,7 +479,7 @@ export default function ActionPlans() {
     let active = true;
     setLoading(true);
     setError("");
-    listPlans({ status, page })
+    listPlans({ status, page, search: query })
       .then((r) => {
         if (active) setResult(r);
       })
@@ -469,14 +492,22 @@ export default function ActionPlans() {
     return () => {
       active = false;
     };
-  }, [status, page, refresh]);
+  }, [status, page, refresh, query]);
   return (
     <section className="directory">
-      <h2>Assessment action plans</h2>
+      <h2>VA evaluation emails and action plans</h2>
       <p className="muted">
         Failed inspections create drafts automatically. Review requirements and
         deadlines before sending any email.
       </p>
+      {onNavigate && (
+        <button
+          className="secondary"
+          onClick={() => onNavigate("emailsettings")}
+        >
+          Email settings and connection check
+        </button>
+      )}
       {selected && (
         <Detail
           key={selected}
@@ -486,6 +517,24 @@ export default function ActionPlans() {
         />
       )}
       <div className="panel">
+        <form
+          className="action-list-toolbar"
+          onSubmit={(e) => {
+            e.preventDefault();
+            setPage(0);
+            setQuery(search);
+          }}
+        >
+          <div>
+            <label htmlFor="va-email-search">Find a VA by name</label>
+            <input
+              id="va-email-search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+          <button type="submit">Find VA</button>
+        </form>
         <div className="action-list-toolbar">
           <div>
             <label htmlFor="action-filter">Status</label>
@@ -555,7 +604,9 @@ export default function ActionPlans() {
                             className="secondary"
                             onClick={() => setSelected(p.id)}
                           >
-                            Review plan
+                            {p.status === "draft"
+                              ? "Review and email VA"
+                              : "Open VA email / history"}
                           </button>
                         </td>
                       </tr>

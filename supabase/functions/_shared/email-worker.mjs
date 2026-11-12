@@ -13,19 +13,32 @@ async function equalSecret(a, b) {
   for (let i = 0; i < x.length; i++) diff |= x[i] ^ y[i];
   return diff === 0;
 }
-export function createEmailHandler({ env, createClient, fetchImpl = fetch }) {
+export function createEmailHandler({
+  env,
+  createClient,
+  fetchImpl = fetch,
+  corsHeaders = {},
+}) {
   return async function handler(request) {
     const origin = request.headers.get("origin");
-    const allowed = env("APP_ORIGIN");
+    // DeviceCare-specific settings avoid collisions with other HCVA systems.
+    const configuredOrigin = env("DEVICECARE_APP_ORIGIN") || env("APP_ORIGIN");
+    let allowed;
+    try {
+      allowed = new URL(configuredOrigin).origin;
+    } catch {
+      allowed = null;
+    }
     const local =
-      env("ALLOW_LOCALHOST") === "true" &&
-      /^http:\/\/localhost:\d+$/.test(origin || "");
+      (env("DEVICECARE_ALLOW_LOCALHOST") || env("ALLOW_LOCALHOST")) ===
+        "true" && /^http:\/\/localhost:\d+$/.test(origin || "");
     const cors =
       origin && (origin === allowed || local)
         ? {
             "Access-Control-Allow-Origin": origin,
             Vary: "Origin",
             "Access-Control-Allow-Headers":
+              corsHeaders["Access-Control-Allow-Headers"] ||
               "authorization,apikey,content-type,x-client-info,x-supabase-api-version",
             "Access-Control-Allow-Methods": "POST, OPTIONS",
           }
@@ -54,7 +67,7 @@ export function createEmailHandler({ env, createClient, fetchImpl = fetch }) {
     if (!url || !publicKey || !secretKey)
       return response(503, { error: "Server credentials are not configured." });
     try {
-      const cronSecret = env("CRON_SECRET");
+      const cronSecret = env("DEVICECARE_CRON_SECRET") || env("CRON_SECRET");
       const isCron =
         Boolean(cronSecret) && (await equalSecret(bearer, cronSecret));
       if (!isCron) {
@@ -78,10 +91,37 @@ export function createEmailHandler({ env, createClient, fetchImpl = fetch }) {
       } catch {
         return response(400, { error: "Invalid JSON" });
       }
+      if (!body || typeof body !== "object" || Array.isArray(body))
+        return response(400, { error: "Request must be a JSON object" });
+      if (body.mode && body.mode !== "check")
+        return response(400, { error: "Unknown email operation" });
       const onlyId = body.job_id || null;
-      if (onlyId && !UUID.test(onlyId))
+      if (onlyId && (typeof onlyId !== "string" || !UUID.test(onlyId)))
         return response(400, { error: "Invalid email job ID" });
-      const apiKey = env("RESEND_API_KEY");
+      const apiKey = env("DEVICECARE_RESEND_API_KEY") || env("RESEND_API_KEY");
+      if (body.mode === "check") {
+        const service = createClient(url, secretKey, {
+          auth: { persistSession: false, autoRefreshToken: false },
+        });
+        const settings = await service
+          .from("action_email_settings")
+          .select("email_enabled,reminders_enabled")
+          .eq("id", true)
+          .single();
+        if (settings.error || !settings.data)
+          return response(503, {
+            error:
+              "DeviceCare email settings are unavailable. Check the DeviceCare migrations and server credentials.",
+          });
+        return response(200, {
+          reachable: true,
+          provider_configured: Boolean(apiKey),
+          email_enabled: settings.data.email_enabled,
+          reminders_enabled: settings.data.reminders_enabled,
+          scheduler_secret_configured: Boolean(cronSecret),
+          note: "Connection checked. No email was queued or sent. Provider credentials and sender domain still require a controlled send test.",
+        });
+      }
       if (!apiKey)
         return response(503, {
           error: "Resend is not configured. Approved emails remain queued.",

@@ -1,7 +1,7 @@
 -- Run in the NEW project's SQL Editor after deploying the Edge Function.
 -- Add secrets using Supabase Vault first (instructions in DEPLOYMENT.md):
 -- devicecare_project_url = https://YOUR_NEW_PROJECT.supabase.co
--- devicecare_cron_secret = EXACT SAME value as the Edge Function CRON_SECRET
+-- devicecare_cron_secret = EXACT SAME value as the Edge Function DEVICECARE_CRON_SECRET
 -- Do not commit actual secrets to this file.
 create extension if not exists pg_cron with schema pg_catalog;
 create extension if not exists pg_net with schema extensions;

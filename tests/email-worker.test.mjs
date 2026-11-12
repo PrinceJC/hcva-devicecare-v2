@@ -42,6 +42,19 @@ function setup({
     },
   };
   const service = {
+    from: (table) => {
+      calls.push(["service", "read_settings", table]);
+      return {
+        select: () => ({
+          eq: () => ({
+            single: async () => ({
+              data: { email_enabled: true, reminders_enabled: false },
+              error: null,
+            }),
+          }),
+        }),
+      };
+    },
     rpc: async (name, args) => {
       calls.push(["service", name, args]);
       if (name === "enqueue_action_reminders") return { data: 0, error: null };
@@ -166,4 +179,64 @@ test("a database error after provider acceptance does not claim a successful rec
   assert.equal(res.status, 500);
   assert.equal(x.requests.length, 1);
   assert.ok((await res.json()).error.includes("lease"));
+});
+
+test("connection check verifies configuration without claiming jobs, preparing reminders or sending", async () => {
+  const x = setup();
+  const result = await x.handler(x.request("user-token", { mode: "check" }));
+  assert.equal(result.status, 200);
+  assert.equal((await result.json()).provider_configured, true);
+  assert.equal(x.requests.length, 0);
+  assert.ok(
+    !x.calls.some((c) =>
+      [
+        "claim_action_email",
+        "enqueue_action_reminders",
+        "finish_action_email",
+      ].includes(c[1]),
+    ),
+  );
+});
+test("connection check reports a missing provider key but never sends", async () => {
+  const x = setup();
+  x.vars.RESEND_API_KEY = "";
+  const response = await x.handler(x.request("user-token", { mode: "check" }));
+  assert.equal(response.status, 200);
+  assert.equal((await response.json()).provider_configured, false);
+  assert.equal(x.requests.length, 0);
+});
+test("DeviceCare origin is independent from shared and ATS settings and accepts a trailing slash", async () => {
+  const x = setup();
+  x.vars.DEVICECARE_APP_ORIGIN = "https://devicecare.example.com/";
+  x.vars.APP_ORIGIN = "https://other-system.example.com";
+  x.vars.ATS_APP_ORIGIN = "https://ats.example.com";
+  const response = await x.handler(
+    x.request(
+      "user-token",
+      { mode: "check" },
+      "https://devicecare.example.com",
+    ),
+  );
+  assert.equal(response.status, 200);
+  assert.equal(
+    response.headers.get("access-control-allow-origin"),
+    "https://devicecare.example.com",
+  );
+  assert.equal(
+    (await x.handler(x.request("user-token", {}, "https://ats.example.com")))
+      .status,
+    403,
+  );
+  assert.equal(x.requests.length, 0);
+});
+test("non-admin connection checks and malformed requests cannot access settings or send", async () => {
+  const x = setup({ admin: false });
+  assert.equal(
+    (await x.handler(x.request("user-token", { mode: "check" }))).status,
+    403,
+  );
+  assert.ok(!x.calls.some((c) => c[0] === "service"));
+  const y = setup();
+  assert.equal((await y.handler(y.request("user-token", null))).status, 400);
+  assert.equal(y.requests.length, 0);
 });

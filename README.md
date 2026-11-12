@@ -1,3 +1,5 @@
+> Existing shared HCVA deployment: start with **EMAIL-UPDATE.md**. This update contains no new SQL migrations. All uploaded ATS migrations and ATS function files are preserved.
+
 # HCVA DeviceCare 2.0
 
 Complete React + Vite frontend, Supabase database and Auth integration,

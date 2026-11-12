@@ -84,9 +84,15 @@ export const saveEmailSettings = (s) =>
       p_hr_email: s.hr_email,
     }),
   );
-export async function listPlans({ status = "all", page = 0 } = {}) {
+export async function listPlans({
+  status = "all",
+  page = 0,
+  search = "",
+} = {}) {
   let q = supabase.from("device_action_plans").select("*", { count: "exact" });
   if (status !== "all") q = q.eq("status", status);
+  if (search.trim())
+    q = q.ilike("person_name", `%${search.trim().replace(/[\\%_]/g, "\\$&")}%`);
   const r = await q
     .order("created_at", { ascending: false })
     .order("id")
@@ -143,18 +149,49 @@ export const changePlanStatus = (p, status, note, recheck) =>
       p_recheck_id: recheck || null,
     }),
   );
-export async function processEmails(jobId) {
-  const r = await supabase.functions.invoke("process-action-emails", {
-    body: jobId ? { job_id: jobId } : {},
-  });
+export async function invokeEmailWorker(body) {
+  const r = await supabase.functions.invoke("process-action-emails", { body });
   if (r.error) {
-    let message = r.error.message;
+    let message = r.error.message || "Email request failed";
+    let status = r.error.context?.status;
     try {
       const body = await r.error.context.json();
-      message = body.error || message;
+      message = body.error || body.message || message;
     } catch {}
+    if (
+      status === 404 ||
+      /Failed to send a request|Failed to fetch|Failed to relay/i.test(message)
+    ) {
+      throw new Error(
+        "Cannot reach the DeviceCare email function. Deploy process-action-emails to this Supabase project and set DEVICECARE_APP_ORIGIN to this website's exact origin. Check Email settings → Connection check. Any approved email stays in its existing queue; do not approve it again.",
+      );
+    }
     throw new Error(message);
   }
   if (r.data?.error) throw new Error(r.data.error);
   return r.data;
+}
+export const checkEmailConnection = () => invokeEmailWorker({ mode: "check" });
+export function processEmails(jobId) {
+  if (!jobId) throw new Error("Select an individual VA email before sending.");
+  return invokeEmailWorker({ job_id: jobId });
+}
+export const planForInspection = (inspectionId) =>
+  row(
+    supabase
+      .from("device_action_plans")
+      .select("id")
+      .eq("inspection_id", inspectionId)
+      .single(),
+  );
+export function emailResultMessage(r) {
+  if (r.accepted)
+    return "Email accepted by the provider. Check email history for this VA.";
+  if (r.rejected)
+    return "Email was rejected. Review the provider error in email history; correct the setup before arranging another notification.";
+  if (r.needs_review)
+    return "Email outcome needs review in Resend before arranging another notification.";
+  if (r.retry_scheduled)
+    return "This email is queued for a later retry. Check email history for details.";
+  return "No email was sent. This job may already be processed, waiting for its retry time, or no longer eligible. Refresh email history.";
 }

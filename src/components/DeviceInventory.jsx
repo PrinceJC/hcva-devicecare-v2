@@ -1,24 +1,25 @@
-import { useEffect, useState } from 'react';
-import InspectionForm from './InspectionForm.jsx';
+import { useEffect, useState } from "react";
+import { planForInspection } from "../lib/actions.js";
+import InspectionForm from "./InspectionForm.jsx";
 import {
   listPeople,
   listDevices,
   createDevice,
   updateDevice,
   archiveDevice,
-} from '../lib/maintenance.js';
+} from "../lib/maintenance.js";
 
 const PAGE_SIZE = 20;
 
 const emptyForm = () => ({
-  person_id: '',
-  model: '',
-  asset_tag: '',
-  device_type: 'laptop',
-  operating_system: '',
-  specifications: '',
-  notes: '',
-  next_due_date: '',
+  person_id: "",
+  model: "",
+  asset_tag: "",
+  device_type: "laptop",
+  operating_system: "",
+  specifications: "",
+  notes: "",
+  next_due_date: "",
 });
 
 async function getAllPeople() {
@@ -32,7 +33,8 @@ async function getAllPeople() {
   }
 }
 
-export default function DeviceInventory() {
+export default function DeviceInventory({ onOpenActionPlan }) {
+  const [failedInspection, setFailedInspection] = useState(null);
   const [people, setPeople] = useState([]);
   const [devices, setDevices] = useState([]);
   const [form, setForm] = useState(emptyForm);
@@ -42,20 +44,17 @@ export default function DeviceInventory() {
   const [refresh, setRefresh] = useState(0);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
-  const [loadError, setLoadError] = useState('');
-  const [error, setError] = useState('');
-  const [message, setMessage] = useState('');
+  const [loadError, setLoadError] = useState("");
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
 
   useEffect(() => {
     let cancelled = false;
 
     setLoading(true);
-    setLoadError('');
+    setLoadError("");
 
-    Promise.all([
-      getAllPeople(),
-      listDevices(page, PAGE_SIZE),
-    ])
+    Promise.all([getAllPeople(), listDevices(page, PAGE_SIZE)])
       .then(([peopleRecords, deviceRecords]) => {
         if (cancelled) return;
 
@@ -100,7 +99,7 @@ export default function DeviceInventory() {
     setForm({
       person_id: device.person_id,
       model: device.model,
-      asset_tag: device.asset_tag || '',
+      asset_tag: device.asset_tag || "",
       device_type: device.device_type,
       operating_system: device.operating_system,
       specifications: device.specifications,
@@ -108,15 +107,15 @@ export default function DeviceInventory() {
       next_due_date: device.next_due_date,
     });
 
-    setError('');
-    setMessage('');
+    setError("");
+    setMessage("");
   }
 
   async function saveDevice(event) {
     event.preventDefault();
 
     if (!form.person_id || !form.model.trim()) {
-      setError('Select a team member and enter the device model.');
+      setError("Select a team member and enter the device model.");
       return;
     }
 
@@ -130,8 +129,8 @@ export default function DeviceInventory() {
     };
 
     setBusy(true);
-    setError('');
-    setMessage('');
+    setError("");
+    setMessage("");
 
     try {
       if (editingId) {
@@ -140,18 +139,16 @@ export default function DeviceInventory() {
         await createDevice(payload);
       }
 
-      setMessage(
-        editingId ? 'Device updated.' : 'Device registered.'
-      );
+      setMessage(editingId ? "Device updated." : "Device registered.");
 
       resetForm();
       setPage(0);
       setRefresh((current) => current + 1);
     } catch (error) {
       setError(
-        error.code === '23505'
-          ? 'That asset tag is already registered.'
-          : error.message
+        error.code === "23505"
+          ? "That asset tag is already registered."
+          : error.message,
       );
     } finally {
       setBusy(false);
@@ -160,21 +157,21 @@ export default function DeviceInventory() {
 
   async function archive(device) {
     const confirmed = window.confirm(
-      `Archive ${device.model}? Its history will be preserved.`
+      `Archive ${device.model}? Its history will be preserved.`,
     );
 
     if (!confirmed) return;
 
     setBusy(true);
-    setError('');
-    setMessage('');
+    setError("");
+    setMessage("");
 
     try {
       await archiveDevice(device.id);
 
       if (editingId === device.id) resetForm();
 
-      setMessage('Device archived.');
+      setMessage("Device archived.");
       setRefresh((current) => current + 1);
     } catch (error) {
       setError(error.message);
@@ -185,23 +182,25 @@ export default function DeviceInventory() {
 
   function startInspection(device) {
     resetForm();
-    setError('');
-    setMessage('');
+    setError("");
+    setMessage("");
     setInspectionDevice(device);
   }
 
   function inspectionSaved(result) {
+    setFailedInspection(result?.hasFailures ? result.inspectionId : null);
     setInspectionDevice(null);
-    setError('');
-    setMessage(result?.hasFailures
-      ? 'Inspection saved. Open Action plans to review the draft, set a deadline, and prepare the email.'
-      : 'Inspection saved. The next six-month inspection date was updated.');
+    setError("");
+    setMessage(
+      result?.hasFailures
+        ? "Inspection saved. Open Action plans to review the draft, set a deadline, and prepare the email."
+        : "Inspection saved. The next six-month inspection date was updated.",
+    );
     setRefresh((current) => current + 1);
   }
 
   const assignedPersonMissing =
-    form.person_id &&
-    !people.some((person) => person.id === form.person_id);
+    form.person_id && !people.some((person) => person.id === form.person_id);
 
   const actionsDisabled = busy || Boolean(inspectionDevice);
 
@@ -210,8 +209,8 @@ export default function DeviceInventory() {
       <h2>Device inventory</h2>
 
       <p className="muted">
-        Register devices, assign them to your team, and complete
-        six-month maintenance checks.
+        Register devices, assign them to your team, and complete six-month
+        maintenance checks.
       </p>
 
       {error && (
@@ -222,6 +221,27 @@ export default function DeviceInventory() {
 
       {message && <p role="status">{message}</p>}
 
+      {failedInspection && onOpenActionPlan && (
+        <button
+          disabled={busy}
+          onClick={async () => {
+            setBusy(true);
+            setError("");
+            try {
+              const plan = await planForInspection(failedInspection);
+              onOpenActionPlan(plan.id);
+            } catch (e) {
+              setError(
+                `Inspection saved, but the email draft could not be opened: ${e.message}. Open Action plans and find this VA.`,
+              );
+            } finally {
+              setBusy(false);
+            }
+          }}
+        >
+          Review and email this VA
+        </button>
+      )}
       {inspectionDevice && (
         <InspectionForm
           key={inspectionDevice.id}
@@ -233,22 +253,14 @@ export default function DeviceInventory() {
 
       <div className="directory-grid">
         <form className="panel" onSubmit={saveDevice}>
-          <h3>
-            {editingId ? 'Edit device' : 'Register device'}
-          </h3>
+          <h3>{editingId ? "Edit device" : "Register device"}</h3>
 
           {!loading && !loadError && people.length === 0 && (
             <p>Add a team member in the VA directory first.</p>
           )}
 
-          <fieldset
-            disabled={
-              actionsDisabled || loading || Boolean(loadError)
-            }
-          >
-            <label htmlFor="device_person">
-              Assigned VA / candidate
-            </label>
+          <fieldset disabled={actionsDisabled || loading || Boolean(loadError)}>
+            <label htmlFor="device_person">Assigned VA / candidate</label>
 
             <select
               id="device_person"
@@ -283,9 +295,7 @@ export default function DeviceInventory() {
               required
             />
 
-            <label htmlFor="device_asset">
-              Asset tag / serial number
-            </label>
+            <label htmlFor="device_asset">Asset tag / serial number</label>
             <input
               id="device_asset"
               name="asset_tag"
@@ -326,9 +336,7 @@ export default function DeviceInventory() {
               placeholder="16 GB RAM / 512 GB SSD"
             />
 
-            <label htmlFor="device_due">
-              Next inspection date
-            </label>
+            <label htmlFor="device_due">Next inspection date</label>
             <input
               id="device_due"
               name="next_due_date"
@@ -349,18 +357,14 @@ export default function DeviceInventory() {
 
             <button type="submit">
               {busy
-                ? 'Saving…'
+                ? "Saving…"
                 : editingId
-                  ? 'Save changes'
-                  : 'Register device'}
+                  ? "Save changes"
+                  : "Register device"}
             </button>
 
             {editingId && (
-              <button
-                type="button"
-                className="secondary"
-                onClick={resetForm}
-              >
+              <button type="button" className="secondary" onClick={resetForm}>
                 Cancel editing
               </button>
             )}
@@ -382,9 +386,7 @@ export default function DeviceInventory() {
                 type="button"
                 className="secondary"
                 disabled={actionsDisabled}
-                onClick={() =>
-                  setRefresh((current) => current + 1)
-                }
+                onClick={() => setRefresh((current) => current + 1)}
               >
                 Retry loading
               </button>
@@ -408,36 +410,27 @@ export default function DeviceInventory() {
                         <td>
                           <strong>{device.model}</strong>
 
-                          <small>
-                            {device.asset_tag || 'No asset tag'}
-                          </small>
+                          <small>{device.asset_tag || "No asset tag"}</small>
 
-                          <small>
-                            {device.operating_system}
-                          </small>
+                          <small>{device.operating_system}</small>
 
                           {device.needs_attention && (
-                            <small className="error">
-                              Needs attention
-                            </small>
+                            <small className="error">Needs attention</small>
                           )}
                         </td>
 
                         <td>
                           {people.find(
-                            (person) =>
-                              person.id === device.person_id
-                          )?.full_name ||
-                            'Archived or unavailable team member'}
+                            (person) => person.id === device.person_id,
+                          )?.full_name || "Archived or unavailable team member"}
                         </td>
 
                         <td>
                           {device.next_due_date}
 
                           <small>
-                            Last check:{' '}
-                            {device.last_inspected_on ||
-                              'Not inspected yet'}
+                            Last check:{" "}
+                            {device.last_inspected_on || "Not inspected yet"}
                           </small>
                         </td>
 
@@ -446,9 +439,7 @@ export default function DeviceInventory() {
                             <button
                               type="button"
                               disabled={actionsDisabled}
-                              onClick={() =>
-                                startInspection(device)
-                              }
+                              onClick={() => startInspection(device)}
                             >
                               Inspect
                             </button>
@@ -491,9 +482,7 @@ export default function DeviceInventory() {
                   type="button"
                   className="secondary"
                   disabled={page === 0 || actionsDisabled}
-                  onClick={() =>
-                    setPage((current) => current - 1)
-                  }
+                  onClick={() => setPage((current) => current - 1)}
                 >
                   Previous
                 </button>
@@ -503,13 +492,8 @@ export default function DeviceInventory() {
                 <button
                   type="button"
                   className="secondary"
-                  disabled={
-                    devices.length < PAGE_SIZE ||
-                    actionsDisabled
-                  }
-                  onClick={() =>
-                    setPage((current) => current + 1)
-                  }
+                  disabled={devices.length < PAGE_SIZE || actionsDisabled}
+                  onClick={() => setPage((current) => current + 1)}
                 >
                   Next
                 </button>

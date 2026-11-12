@@ -57,6 +57,7 @@ export default function App() {
     error: sessionError,
     retryAccess,
   } = useAdminSession();
+  const [selectedActionPlan, setSelectedActionPlan] = useState(null);
   const [activeTab, setActiveTab] = useState(savedSection);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -71,6 +72,7 @@ export default function App() {
   }, [activeTab]);
 
   function navigate(id) {
+    setSelectedActionPlan(null);
     setActiveTab(id);
     setMenuOpen(false);
   }
@@ -321,18 +323,28 @@ export default function App() {
           )}
           {activeTab === "dashboard" && <Dashboard onNavigate={navigate} />}
           {activeTab === "people" && <VADirectory />}
-          {activeTab === "devices" && <DeviceInventory />}
+          {activeTab === "devices" && (
+            <DeviceInventory
+              onOpenActionPlan={(id) => {
+                setSelectedActionPlan(id);
+                setActiveTab("actions");
+              }}
+            />
+          )}
           {activeTab === "schedule" && <QuarterlySchedule />}
           {activeTab === "history" && <InspectionHistory />}
           {activeTab === "incidents" && <IncidentLog />}
           {activeTab === "actions" && (
             <Suspense fallback={<p>Loading action plans…</p>}>
-              <ActionPlans />
+              <ActionPlans
+                initialPlanId={selectedActionPlan}
+                onNavigate={navigate}
+              />
             </Suspense>
           )}
           {activeTab === "emailsettings" && (
             <Suspense fallback={<p>Loading email settings…</p>}>
-              <EmailSettings />
+              <EmailSettings onNavigate={navigate} />
             </Suspense>
           )}
           <footer className="workspace-footer">

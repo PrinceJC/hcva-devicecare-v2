@@ -1,4 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2.118.0";
+import { corsHeaders } from "npm:@supabase/supabase-js@2.118.0/cors";
 import { createEmailHandler } from "../_shared/email-worker.mjs";
 
 // verify_jwt is disabled at the gateway because this handler supports both
@@ -8,5 +9,6 @@ Deno.serve(
   createEmailHandler({
     env: (name: string) => Deno.env.get(name),
     createClient,
+    corsHeaders,
   }),
 );

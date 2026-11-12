@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => ({
   approvePlan: vi.fn(),
   changePlanStatus: vi.fn(),
   processEmails: vi.fn(),
+  checkEmailConnection: vi.fn(),
   emailSettings: vi.fn(),
   saveEmailSettings: vi.fn(),
 }));
@@ -114,7 +115,9 @@ beforeEach(() => {
 afterEach(cleanup);
 async function open() {
   render(<ActionPlans />);
-  fireEvent.click(await screen.findByRole("button", { name: "Review plan" }));
+  fireEvent.click(
+    await screen.findByRole("button", { name: "Review and email VA" }),
+  );
   await screen.findByLabelText("Required actions");
 }
 describe("reviewed action emails", () => {
@@ -122,7 +125,7 @@ describe("reviewed action emails", () => {
     await open();
     expect(mocks.processEmails).not.toHaveBeenCalled();
     expect(
-      screen.queryByRole("button", { name: "Approve and queue email" }),
+      screen.queryByRole("button", { name: "Approve and send to this VA" }),
     ).toBeNull();
     fireEvent.click(
       screen.getByRole("button", { name: "Preview email and recipients" }),
@@ -132,11 +135,12 @@ describe("reviewed action emails", () => {
       screen.getByText("ceo@example.com, coo@example.com, hr@example.com"),
     ).toBeTruthy();
     expect(
-      screen.getByRole("button", { name: "Approve and queue email" }).disabled,
+      screen.getByRole("button", { name: "Approve and send to this VA" })
+        .disabled,
     ).toBe(true);
     fireEvent.click(screen.getByRole("checkbox"));
     fireEvent.click(
-      screen.getByRole("button", { name: "Approve and queue email" }),
+      screen.getByRole("button", { name: "Approve and send to this VA" }),
     );
     await waitFor(() =>
       expect(mocks.approvePlan).toHaveBeenCalledWith(
@@ -175,7 +179,7 @@ describe("reviewed action emails", () => {
     await screen.findByText("Review the exact email");
     fireEvent.click(screen.getByRole("checkbox"));
     fireEvent.click(
-      screen.getByRole("button", { name: "Approve and queue email" }),
+      screen.getByRole("button", { name: "Approve and send to this VA" }),
     );
     await screen.findByText(
       /Plan approved and queued. Email processing could not finish/,
@@ -200,5 +204,46 @@ describe("reviewed action emails", () => {
       ),
     );
     expect(mocks.processEmails).not.toHaveBeenCalled();
+  });
+});
+
+describe("individual VA sending and connection setup", () => {
+  it("checks configuration without sending an email", async () => {
+    mocks.checkEmailConnection.mockResolvedValue({
+      reachable: true,
+      provider_configured: false,
+      email_enabled: false,
+      scheduler_secret_configured: false,
+    });
+    render(<EmailSettings />);
+    fireEvent.click(
+      screen.getByRole("button", { name: "Check email connection" }),
+    );
+    await screen.findByText(/DeviceCare function reachable/);
+    expect(mocks.processEmails).not.toHaveBeenCalled();
+    expect(
+      screen.queryByRole("button", { name: "Process queued emails now" }),
+    ).toBeNull();
+  });
+  it("sends only the selected VA's existing queued job without approving again", async () => {
+    plan = { ...plan, status: "awaiting_action", revision: 1 };
+    render(<ActionPlans initialPlanId="p1" />);
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Send this VA email" }),
+    );
+    await waitFor(() => expect(mocks.processEmails).toHaveBeenCalledWith("j1"));
+    expect(mocks.approvePlan).not.toHaveBeenCalled();
+  });
+  it("searches evaluation plans by VA name", async () => {
+    render(<ActionPlans />);
+    fireEvent.change(screen.getByLabelText("Find a VA by name"), {
+      target: { value: "Sample VA" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Find VA" }));
+    await waitFor(() =>
+      expect(mocks.listPlans).toHaveBeenCalledWith(
+        expect.objectContaining({ search: "Sample VA", page: 0 }),
+      ),
+    );
   });
 });
