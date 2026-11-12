@@ -8,7 +8,10 @@
   --nav: #123333;
   --muted: #71837f;
   --line: #e1e9e5;
-  --lime: #a8d42b;
+  --lime: #A5D334;
+  --button-primary: #A5D334;
+  --button-primary-hover: #94bf2a;
+  --button-primary-text: #123333;
   --cyan: #64dce5;
 }
 * {
@@ -35,9 +38,9 @@ button {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  border: 1px solid var(--primary);
-  background: var(--primary);
-  color: white;
+  border: 1px solid var(--button-primary);
+  background: var(--button-primary);
+  color: var(--button-primary-text);
   padding: 11px 16px;
   border-radius: 8px;
   cursor: pointer;
@@ -48,7 +51,8 @@ button {
     border-color 0.15s;
 }
 button:hover {
-  background: var(--primary-dark);
+  background: var(--button-primary-hover);
+  border-color: var(--button-primary-hover);
 }
 button:disabled {
   opacity: 0.55;
@@ -225,7 +229,7 @@ a {
   box-shadow: inset 3px 0 var(--lime);
 }
 .sidebar nav button.active svg {
-  color: #bddf6c;
+  color: var(--lime);
 }
 .sidebar-bottom {
   margin-top: auto;
@@ -1233,3 +1237,9 @@ td .row-actions {
 .sidebar-profile { display: flex; }
 .sidebar-profile > div { min-width: 0; }
 .sidebar-profile strong, .sidebar-profile small { overflow-wrap: anywhere; }
+
+/* Shared HCVA brand: lime primary actions with legible dark-green text. */
+button:disabled, button:disabled:hover {
+  cursor: not-allowed;
+}
+input[type="checkbox"], input[type="radio"] { accent-color: #57760d; }
