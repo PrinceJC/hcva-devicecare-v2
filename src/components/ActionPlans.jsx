@@ -13,6 +13,7 @@ import {
   manilaToday,
   timestamp,
   emailResultMessage,
+  reviewCorrectedPlan,
 } from "../lib/actions.js";
 
 function Detail({ id, onClose, onChanged }) {
@@ -27,7 +28,9 @@ function Detail({ id, onClose, onChanged }) {
     [refresh, setRefresh] = useState(0),
     [nextStatus, setNextStatus] = useState(""),
     [note, setNote] = useState(""),
-    [recheck, setRecheck] = useState("");
+    [recheck, setRecheck] = useState(""),
+    [reviewResolution, setReviewResolution] = useState(""),
+    [reviewNote, setReviewNote] = useState("");
   useEffect(() => {
     let active = true;
     setLoading(true);
@@ -132,6 +135,25 @@ function Detail({ id, onClose, onChanged }) {
       reload();
     }
   }
+  async function reviewCorrection(event) {
+    event.preventDefault();
+    setBusy(true);
+    setError("");
+    setMessage("");
+    try {
+      await reviewCorrectedPlan(details.plan, reviewResolution, reviewNote);
+      setMessage(
+        "Correction reviewed. No email was sent. Any new draft needs a fresh email preview and approval.",
+      );
+      setReviewNote("");
+      setReviewResolution("");
+      reload();
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setBusy(false);
+    }
+  }
   async function change(event) {
     event.preventDefault();
     setBusy(true);
@@ -214,11 +236,55 @@ function Detail({ id, onClose, onChanged }) {
                 <strong>{plan.due_date || "Not set"}</strong>
               </div>
             </div>
+            {plan.inspection_review_required && (
+              <form className="panel" onSubmit={reviewCorrection}>
+                <h3>Inspection corrected — IT review required</h3>
+                <p>
+                  Pending messages were paused. Previously accepted emails
+                  retain their original content. Review the corrected inspection
+                  and email history before choosing the next step.
+                </p>
+                <fieldset disabled={busy}>
+                  <label htmlFor="corrected-plan-resolution">
+                    After reviewing the inspection
+                  </label>
+                  <select
+                    id="corrected-plan-resolution"
+                    required
+                    value={reviewResolution}
+                    onChange={(e) => setReviewResolution(e.target.value)}
+                  >
+                    <option value="">Choose review outcome</option>
+                    <option value="draft">
+                      Prepare a revised draft for failed checks
+                    </option>
+                    <option value="cancel">Cancel the obsolete plan</option>
+                    {["completed", "cancelled"].includes(plan.status) && (
+                      <option value="retain">
+                        Keep the existing final status if still valid
+                      </option>
+                    )}
+                  </select>
+                  <label htmlFor="corrected-plan-note">
+                    Correction review note
+                  </label>
+                  <textarea
+                    id="corrected-plan-note"
+                    value={reviewNote}
+                    required
+                    minLength={5}
+                    maxLength={2000}
+                    onChange={(e) => setReviewNote(e.target.value)}
+                  />
+                  <button type="submit">Record correction review</button>
+                </fieldset>
+              </form>
+            )}
             <h3>Failed checks</h3>
             <p className="preserve-lines">{plan.failed_checks}</p>
             <h3>IT findings</h3>
             <p className="preserve-lines">{plan.findings}</p>
-            {plan.status === "draft" ? (
+            {plan.status === "draft" && !plan.inspection_review_required ? (
               <form onSubmit={save}>
                 <fieldset disabled={busy}>
                   <label htmlFor="action-title">Email / plan title</label>
@@ -282,7 +348,7 @@ function Detail({ id, onClose, onChanged }) {
                 </p>
               </>
             )}
-            {plan.status === "draft" && (
+            {plan.status === "draft" && !plan.inspection_review_required && (
               <div className="action-preview-section">
                 <button
                   disabled={busy || Boolean(dirty)}
@@ -328,7 +394,7 @@ function Detail({ id, onClose, onChanged }) {
                 )}
               </div>
             )}
-            {transitions.length > 0 && (
+            {transitions.length > 0 && !plan.inspection_review_required && (
               <form className="action-transition" onSubmit={change}>
                 <h3>Record progress / arrange recheck</h3>
                 <fieldset disabled={busy}>
@@ -598,7 +664,14 @@ export default function ActionPlans({ initialPlanId = null, onNavigate }) {
                               <small className="error">Overdue</small>
                             )}
                         </td>
-                        <td>{ACTION_STATUSES[p.status]}</td>
+                        <td>
+                          {ACTION_STATUSES[p.status]}
+                          {p.inspection_review_required && (
+                            <small className="error">
+                              Corrected inspection — review required
+                            </small>
+                          )}
+                        </td>
                         <td>
                           <button
                             className="secondary"

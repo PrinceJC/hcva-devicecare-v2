@@ -195,3 +195,13 @@ export function emailResultMessage(r) {
     return "This email is queued for a later retry. Check email history for details.";
   return "No email was sent. This job may already be processed, waiting for its retry time, or no longer eligible. Refresh email history.";
 }
+
+export const reviewCorrectedPlan = (plan, resolution, note) =>
+  row(
+    supabase.rpc("review_corrected_inspection_plan", {
+      p_id: plan.id,
+      p_expected_version: plan.version,
+      p_resolution: resolution,
+      p_note: note,
+    }),
+  );

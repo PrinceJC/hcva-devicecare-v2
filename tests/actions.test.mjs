@@ -82,13 +82,20 @@ test("Full fresh database and reviewed action-email workflow", async (t) => {
         );
         await as(null, "service_role");
         await db.exec("reset role");
-        assert.equal(
+        const purposes = new Set(
           (
-            await query(
-              "select count(*)::int n from public.ats_email_templates",
-            )
-          ).rows[0].n,
-          6,
+            await query("select purpose from public.ats_email_templates")
+          ).rows.map((row) => row.purpose),
+        );
+        assert.ok(
+          [
+            "Shortlisted",
+            "Screening",
+            "Interview",
+            "Offer",
+            "Hired",
+            "Rejected",
+          ].every((purpose) => purposes.has(purpose)),
         );
       },
     );

@@ -17,6 +17,7 @@ const mocks = vi.hoisted(() => ({
   checkEmailConnection: vi.fn(),
   emailSettings: vi.fn(),
   saveEmailSettings: vi.fn(),
+  reviewCorrectedPlan: vi.fn(),
 }));
 vi.mock("../../src/lib/actions.js", async (original) => ({
   ...(await original()),
@@ -246,4 +247,39 @@ describe("individual VA sending and connection setup", () => {
       ),
     );
   });
+});
+
+it("requires corrected-inspection review before preview or a new email approval", async () => {
+  plan = { ...plan, inspection_review_required: true };
+  mocks.reviewCorrectedPlan.mockImplementation(async () => {
+    plan = {
+      ...plan,
+      inspection_review_required: false,
+      version: plan.version + 1,
+    };
+    return plan;
+  });
+  render(<ActionPlans />);
+  fireEvent.click(
+    await screen.findByRole("button", { name: "Review and email VA" }),
+  );
+  await screen.findByText("Inspection corrected — IT review required");
+  expect(
+    screen.queryByRole("button", { name: "Preview email and recipients" }),
+  ).toBeNull();
+  fireEvent.change(screen.getByLabelText("After reviewing the inspection"), {
+    target: { value: "draft" },
+  });
+  fireEvent.change(screen.getByLabelText("Correction review note"), {
+    target: { value: "Reviewed the corrected results and requirements." },
+  });
+  fireEvent.submit(
+    screen
+      .getByRole("button", { name: "Record correction review" })
+      .closest("form"),
+  );
+  await waitFor(() => expect(mocks.reviewCorrectedPlan).toHaveBeenCalled());
+  expect(mocks.approvePlan).not.toHaveBeenCalled();
+  expect(mocks.processEmails).not.toHaveBeenCalled();
+  await screen.findByRole("button", { name: "Preview email and recipients" });
 });

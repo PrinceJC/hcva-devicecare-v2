@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import InspectionCorrection from "./InspectionCorrection.jsx";
+import InspectionCorrectionHistory from "./InspectionCorrectionHistory.jsx";
 import InspectionEvidence from "./InspectionEvidence.jsx";
 import { supabase } from "../lib/supabase.js";
 
@@ -147,7 +149,10 @@ export default function InspectionHistory() {
 
       {selectedReport && (
         <div className="panel" style={{ marginTop: 24 }}>
-          <h3>Inspection report</h3>
+          <h3>
+            Inspection report · Revision{" "}
+            {selectedReport.correction_version || 1}
+          </h3>
 
           <p>
             <strong>VA / candidate:</strong>{" "}
@@ -175,13 +180,30 @@ export default function InspectionHistory() {
               : "Completed without failed checks"}
           </p>
 
-          <InspectionEvidence key={selectedReport.id} report={selectedReport} />
+          <InspectionEvidence
+            key={`${selectedReport.id}-${selectedReport.correction_version || 1}`}
+            report={selectedReport}
+          />
 
           <h3 style={{ marginTop: 24 }}>Findings and follow-up actions</h3>
 
           <p style={{ whiteSpace: "pre-wrap" }}>
             {selectedReport.findings || "No additional findings recorded."}
           </p>
+
+          <InspectionCorrection
+            key={selectedReport.id}
+            reportId={selectedReport.id}
+            onSaved={(inspection) => {
+              setSelectedReport(inspection);
+              setRefresh((v) => v + 1);
+            }}
+          />
+          <InspectionCorrectionHistory
+            key={selectedReport.id}
+            reportId={selectedReport.id}
+            version={selectedReport.correction_version || 1}
+          />
 
           <button
             type="button"
