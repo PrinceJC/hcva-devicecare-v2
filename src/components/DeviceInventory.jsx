@@ -19,6 +19,9 @@ const emptyForm = () => ({
   operating_system: "",
   specifications: "",
   notes: "",
+  internet_provider: "",
+  backup_internet: "",
+  backup_power: "",
   next_due_date: "",
 });
 
@@ -104,6 +107,9 @@ export default function DeviceInventory({ onOpenActionPlan }) {
       operating_system: device.operating_system,
       specifications: device.specifications,
       notes: device.notes,
+      internet_provider: device.internet_provider || "",
+      backup_internet: device.backup_internet || "",
+      backup_power: device.backup_power || "",
       next_due_date: device.next_due_date,
     });
 
@@ -346,6 +352,40 @@ export default function DeviceInventory({ onOpenActionPlan }) {
               required
             />
 
+            <h3 style={{ marginTop: 24 }}>Internet and backup setup</h3>
+            {[
+              [
+                "internet_provider",
+                "Main internet provider",
+                "e.g. PLDT Fiber or Converge",
+                300,
+              ],
+              [
+                "backup_internet",
+                "Backup internet",
+                "e.g. Smart mobile data, secondary ISP, or None",
+                500,
+              ],
+              [
+                "backup_power",
+                "Backup power",
+                "e.g. UPS, power station, generator, or None",
+                500,
+              ],
+            ].map(([name, label, placeholder, limit]) => (
+              <div key={name}>
+                <label htmlFor={`device_${name}`}>{label}</label>
+                <input
+                  id={`device_${name}`}
+                  name={name}
+                  value={form[name]}
+                  onChange={changeField}
+                  placeholder={placeholder}
+                  maxLength={limit}
+                />
+              </div>
+            ))}
+
             <label htmlFor="device_notes">Device notes</label>
             <textarea
               id="device_notes"
@@ -413,6 +453,17 @@ export default function DeviceInventory({ onOpenActionPlan }) {
                           <small>{device.asset_tag || "No asset tag"}</small>
 
                           <small>{device.operating_system}</small>
+                          {device.internet_provider && (
+                            <small>Internet: {device.internet_provider}</small>
+                          )}
+                          {device.backup_internet && (
+                            <small>
+                              Backup internet: {device.backup_internet}
+                            </small>
+                          )}
+                          {device.backup_power && (
+                            <small>Backup power: {device.backup_power}</small>
+                          )}
 
                           {device.needs_attention && (
                             <small className="error">Needs attention</small>

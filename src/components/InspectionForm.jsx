@@ -1,5 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import { getChecklist, completeInspection } from "../lib/maintenance.js";
+import { getChecklist } from "../lib/maintenance.js";
+import {
+  completeDetailedInspection,
+  uploadInspectionScreenshot,
+  validateScreenshot,
+} from "../lib/inspectionEvidence.js";
 
 function manilaToday() {
   const parts = new Intl.DateTimeFormat("en-US", {
@@ -19,6 +24,13 @@ function manilaToday() {
 export default function InspectionForm({ device, onSaved, onCancel }) {
   const [checks, setChecks] = useState([]);
   const [results, setResults] = useState({});
+  const [checkNotes, setCheckNotes] = useState({});
+  const [internet, setInternet] = useState({
+    internet_provider: device.internet_provider || "",
+    backup_internet: device.backup_internet || "",
+    backup_power: device.backup_power || "",
+  });
+  const [screenshot, setScreenshot] = useState(null);
   const [date, setDate] = useState(manilaToday);
   const [findings, setFindings] = useState("");
   const [loading, setLoading] = useState(true);
@@ -76,8 +88,13 @@ export default function InspectionForm({ device, onSaved, onCancel }) {
 
     const failed = checks.some((check) => results[check.code] === "fail");
 
-    if (failed && !findings.trim()) {
-      setError("Describe the failed checks and follow-up actions.");
+    if (
+      checks.some(
+        (check) =>
+          results[check.code] === "fail" && !checkNotes[check.code]?.trim(),
+      )
+    ) {
+      setError("Add a note for each failed check.");
       return;
     }
 
@@ -86,13 +103,26 @@ export default function InspectionForm({ device, onSaved, onCancel }) {
       inspected_on: date,
       results,
       findings: findings.trim(),
+      check_notes: Object.fromEntries(
+        Object.entries(checkNotes)
+          .map(([key, value]) => [key, value.trim()])
+          .filter(([, value]) => value),
+      ),
+      ...Object.fromEntries(
+        Object.entries(internet).map(([key, value]) => [key, value.trim()]),
+      ),
     };
 
     const fingerprint = JSON.stringify(payload);
 
-    if (pendingRequest.current?.fingerprint !== fingerprint) {
+    if (
+      pendingRequest.current?.fingerprint !== fingerprint ||
+      pendingRequest.current?.file !== screenshot
+    ) {
       pendingRequest.current = {
         fingerprint,
+        file: screenshot,
+        uploadedPath: null,
         id: crypto.randomUUID(),
       };
     }
@@ -100,9 +130,17 @@ export default function InspectionForm({ device, onSaved, onCancel }) {
     setBusy(true);
 
     try {
-      await completeInspection({
+      validateScreenshot(screenshot);
+      if (screenshot && !pendingRequest.current.uploadedPath) {
+        pendingRequest.current.uploadedPath = await uploadInspectionScreenshot(
+          screenshot,
+          pendingRequest.current.id,
+        );
+      }
+      await completeDetailedInspection({
         ...payload,
         request_id: pendingRequest.current.id,
+        speed_screenshot_path: pendingRequest.current.uploadedPath,
       });
     } catch (error) {
       setError(error.message);
@@ -176,15 +214,87 @@ export default function InspectionForm({ device, onSaved, onCancel }) {
                   <option value="fail">Fail</option>
                   <option value="na">Not applicable</option>
                 </select>
+                <label htmlFor={`note_${check.code}`}>
+                  Notes — {check.title}
+                  {results[check.code] === "fail"
+                    ? " (required)"
+                    : " (optional)"}
+                </label>
+                <textarea
+                  id={`note_${check.code}`}
+                  rows={2}
+                  maxLength={4000}
+                  value={checkNotes[check.code] || ""}
+                  required={results[check.code] === "fail"}
+                  onChange={(event) =>
+                    setCheckNotes((current) => ({
+                      ...current,
+                      [check.code]: event.target.value,
+                    }))
+                  }
+                  placeholder="Record observations, measurements, or the reason for this result."
+                />
               </div>
             ))}
 
+            <h3 style={{ marginTop: 24 }}>Internet and backup setup</h3>
+            <p className="muted">
+              These values are saved with this inspection and become the
+              device's current setup. Enter “None” when no backup is available.
+            </p>
+            {[
+              ["internet_provider", "Main internet provider", 300],
+              ["backup_internet", "Backup internet", 500],
+              ["backup_power", "Backup power", 500],
+            ].map(([name, label, limit]) => (
+              <div key={name}>
+                <label htmlFor={`inspection_${name}`}>{label}</label>
+                <input
+                  id={`inspection_${name}`}
+                  value={internet[name]}
+                  maxLength={limit}
+                  onChange={(event) =>
+                    setInternet((current) => ({
+                      ...current,
+                      [name]: event.target.value,
+                    }))
+                  }
+                />
+              </div>
+            ))}
+            <label htmlFor="speed_screenshot">
+              Internet speed screenshot (optional)
+            </label>
+            <input
+              id="speed_screenshot"
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              onChange={(event) => {
+                const file = event.target.files?.[0] || null;
+                try {
+                  validateScreenshot(file);
+                  setScreenshot(file);
+                  setError("");
+                } catch (e) {
+                  setError(e.message);
+                  event.target.value = "";
+                  setScreenshot(null);
+                }
+              }}
+            />
+            <p className="muted">
+              PNG, JPG or WebP, up to 5 MB. Capture download/upload speed and
+              ping. Crop out passwords, patient information and unrelated
+              windows. Attachments are visible to DeviceCare admins.
+            </p>
+            {screenshot && <p role="status">Selected: {screenshot.name}</p>}
             <label htmlFor="inspection_findings">
               Findings and follow-up actions
             </label>
             <textarea
               id="inspection_findings"
               rows={4}
+              maxLength={10000}
               value={findings}
               onChange={(event) => setFindings(event.target.value)}
               placeholder="Describe any issues and required actions."

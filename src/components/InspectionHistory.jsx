@@ -1,15 +1,16 @@
-import { useEffect, useState } from 'react';
-import { supabase } from '../lib/supabase.js';
+import { useEffect, useState } from "react";
+import InspectionEvidence from "./InspectionEvidence.jsx";
+import { supabase } from "../lib/supabase.js";
 
 const PAGE_SIZE = 20;
 
 function formatDate(value) {
-  if (!value) return '—';
+  if (!value) return "—";
 
-  return new Date(`${value}T12:00:00`).toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
+  return new Date(`${value}T12:00:00`).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
   });
 }
 
@@ -19,10 +20,10 @@ async function getDeviceOptions() {
   // Include archived devices so their history remains accessible.
   for (let page = 0; ; page += 1) {
     const { data, error } = await supabase
-      .from('devices')
-      .select('id, model, asset_tag, archived')
-      .order('model')
-      .order('id')
+      .from("devices")
+      .select("id, model, asset_tag, archived")
+      .order("model")
+      .order("id")
       .range(page * 100, page * 100 + 99);
 
     if (error) throw error;
@@ -35,19 +36,19 @@ async function getDeviceOptions() {
 
 export default function InspectionHistory() {
   const [devices, setDevices] = useState([]);
-  const [deviceId, setDeviceId] = useState('');
+  const [deviceId, setDeviceId] = useState("");
   const [reports, setReports] = useState([]);
   const [selectedReport, setSelectedReport] = useState(null);
   const [page, setPage] = useState(0);
   const [refresh, setRefresh] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [deviceError, setDeviceError] = useState('');
+  const [error, setError] = useState("");
+  const [deviceError, setDeviceError] = useState("");
 
   useEffect(() => {
     let cancelled = false;
 
-    setDeviceError('');
+    setDeviceError("");
 
     getDeviceOptions()
       .then((records) => {
@@ -66,25 +67,20 @@ export default function InspectionHistory() {
     let cancelled = false;
 
     setLoading(true);
-    setError('');
+    setError("");
 
     async function loadReports() {
-      let request = supabase
-        .from('inspections')
-        .select('*');
+      let request = supabase.from("inspections").select("*");
 
       if (deviceId) {
-        request = request.eq('device_id', deviceId);
+        request = request.eq("device_id", deviceId);
       }
 
       const { data, error } = await request
-        .order('inspected_on', { ascending: false })
-        .order('created_at', { ascending: false })
-        .order('id')
-        .range(
-          page * PAGE_SIZE,
-          page * PAGE_SIZE + PAGE_SIZE - 1
-        );
+        .order("inspected_on", { ascending: false })
+        .order("created_at", { ascending: false })
+        .order("id")
+        .range(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE - 1);
 
       if (error) throw error;
 
@@ -121,18 +117,14 @@ export default function InspectionHistory() {
       <div className="panel">
         <label htmlFor="history_device">Filter by device</label>
 
-        <select
-          id="history_device"
-          value={deviceId}
-          onChange={changeDevice}
-        >
+        <select id="history_device" value={deviceId} onChange={changeDevice}>
           <option value="">All devices</option>
 
           {devices.map((device) => (
             <option key={device.id} value={device.id}>
               {device.model}
-              {device.asset_tag ? ` · ${device.asset_tag}` : ''}
-              {device.archived ? ' (Archived)' : ''}
+              {device.asset_tag ? ` · ${device.asset_tag}` : ""}
+              {device.archived ? " (Archived)" : ""}
             </option>
           ))}
         </select>
@@ -158,70 +150,37 @@ export default function InspectionHistory() {
           <h3>Inspection report</h3>
 
           <p>
-            <strong>VA / candidate:</strong>{' '}
+            <strong>VA / candidate:</strong>{" "}
             {selectedReport.person_name_snapshot}
           </p>
 
           <p>
-            <strong>Device:</strong>{' '}
-            {selectedReport.device_model_snapshot}
+            <strong>Device:</strong> {selectedReport.device_model_snapshot}
           </p>
 
           <p>
-            <strong>Inspection date:</strong>{' '}
+            <strong>Inspection date:</strong>{" "}
             {formatDate(selectedReport.inspected_on)}
           </p>
 
           <p>
-            <strong>Next date scheduled by this inspection:</strong>{' '}
+            <strong>Next date scheduled by this inspection:</strong>{" "}
             {formatDate(selectedReport.next_due_date)}
           </p>
 
-          <p className={selectedReport.has_failures ? 'error' : ''}>
-            <strong>Result:</strong>{' '}
+          <p className={selectedReport.has_failures ? "error" : ""}>
+            <strong>Result:</strong>{" "}
             {selectedReport.has_failures
-              ? 'Issues found'
-              : 'Completed without failed checks'}
+              ? "Issues found"
+              : "Completed without failed checks"}
           </p>
 
-          <div className="table-scroll">
-            <table>
-              <thead>
-                <tr>
-                  <th>Checklist item</th>
-                  <th>Result</th>
-                </tr>
-              </thead>
+          <InspectionEvidence key={selectedReport.id} report={selectedReport} />
 
-              <tbody>
-                {Object.entries(selectedReport.results).map(
-                  ([code, check]) => (
-                    <tr key={code}>
-                      <td>
-                        <strong>{check.title}</strong>
-                        <small>{check.description}</small>
-                      </td>
+          <h3 style={{ marginTop: 24 }}>Findings and follow-up actions</h3>
 
-                      <td className={check.result === 'fail' ? 'error' : ''}>
-                        {{
-                          pass: 'Pass',
-                          fail: 'Fail',
-                          na: 'Not applicable',
-                        }[check.result] || check.result}
-                      </td>
-                    </tr>
-                  )
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          <h3 style={{ marginTop: 24 }}>
-            Findings and follow-up actions
-          </h3>
-
-          <p style={{ whiteSpace: 'pre-wrap' }}>
-            {selectedReport.findings || 'No additional findings recorded.'}
+          <p style={{ whiteSpace: "pre-wrap" }}>
+            {selectedReport.findings || "No additional findings recorded."}
           </p>
 
           <button
@@ -240,7 +199,9 @@ export default function InspectionHistory() {
         {loading ? (
           <p role="status">Loading inspection history…</p>
         ) : error ? (
-          <p className="error" role="alert">{error}</p>
+          <p className="error" role="alert">
+            {error}
+          </p>
         ) : (
           <>
             <div className="table-scroll">
@@ -264,10 +225,8 @@ export default function InspectionHistory() {
                         <small>{report.device_model_snapshot}</small>
                       </td>
 
-                      <td className={report.has_failures ? 'error' : ''}>
-                        {report.has_failures
-                          ? 'Issues found'
-                          : 'Completed'}
+                      <td className={report.has_failures ? "error" : ""}>
+                        {report.has_failures ? "Issues found" : "Completed"}
                       </td>
 
                       <td>
@@ -286,9 +245,7 @@ export default function InspectionHistory() {
 
                   {reports.length === 0 && (
                     <tr>
-                      <td colSpan={4}>
-                        No inspections found on this page.
-                      </td>
+                      <td colSpan={4}>No inspections found on this page.</td>
                     </tr>
                   )}
                 </tbody>
